@@ -5,11 +5,9 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const encrypt = require("mongoose-encryption");
+const md5 = require("md5");             //using md5 hashing method for password encryption
 
 const app = express();
-
-console.log(process.env.API_KEY);
 
 app.use(express.static("public"));
 app.set("view engine", "ejs");
@@ -27,9 +25,6 @@ const userSchema = new mongoose.Schema({
 //AES 256 Encryption method.
 //const secret = process.env.SOME_LONG_UNGUESSABLE_STRING;
 const secret = process.env.SECRET;
-//create encryption for userSchema with plugin to encrypt the database table schema
-//to encrypt a certain field. Specify it after "secret keypair" follow by comma encryptedFields: [ArrayOfFields].
-userSchema.plugin(encrypt, {secret: secret, encryptedFields: ["password"]});
 
 //create Users table model based on userSchema
 const User = mongoose.model("User", userSchema);
@@ -51,7 +46,7 @@ app.get("/register", function(req, res){
 
 app.post("/register", function(req, res){
     const username = req.body.username;
-    const password = req.body.password;
+    const password = md5(req.body.password);            //add md5 hashing encryption for password
     //create user document from User model schema
     const newUser = new User({
         email: username,
@@ -71,8 +66,8 @@ app.post("/register", function(req, res){
 
 app.post("/login", function(req, res){
     const username = req.body.username;
-    const password = req.body.password;
-    User.findOne({email: username})
+    const password = md5(req.body.password);        //add md5 hasing ecnryption for password
+    User.findOne({email: username}).collation({locale: "en", strength: 2})
     .then((foundUser)=>{
         if (foundUser){
             if (foundUser.password == password){
