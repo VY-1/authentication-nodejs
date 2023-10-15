@@ -5,7 +5,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const md5 = require("md5");             //using md5 hashing method for password encryption
+const bcrypt = require("bcrypt");
+const saltRounds = 10;              //set to 10 rounds of hashing
 
 const app = express();
 
@@ -46,37 +47,47 @@ app.get("/register", function(req, res){
 
 app.post("/register", function(req, res){
     const username = req.body.username;
-    const password = md5(req.body.password);            //add md5 hashing encryption for password
-    //create user document from User model schema
-    const newUser = new User({
-        email: username,
-        password: password
-    });
+    const password = req.body.password;
+    
+    //using bcrypt encryption hashing for password and write to DB
+    bcrypt.hash(password, saltRounds, function(err, hash){
+        //create user document from User model schema
+        const newUser = new User({
+            email: username,
+            password: hash
+        });
 
-    //save user to users table schema
-    newUser.save()
-    .then((user)=>{
-        res.render("secrets");
-    })
-    .catch((err)=>{
-        res.send(err + " Please try again");
+        //save user to users table schema
+        newUser.save()
+        .then((user)=>{
+            res.render("secrets");
+        })
+        .catch((err)=>{
+            res.send(err + " Please try again");
+        });
+
+
     });
 
 });
 
 app.post("/login", function(req, res){
     const username = req.body.username;
-    const password = md5(req.body.password);        //add md5 hasing ecnryption for password
+    const password = req.body.password;
+
     User.findOne({email: username}).collation({locale: "en", strength: 2})
     .then((foundUser)=>{
         if (foundUser){
-            if (foundUser.password == password){
-                res.render("secrets");
-            }
-            else{
-                res.send("Incorrect password");
-            }
-
+            //Using bcrypt encryption hashing loaded from DB and compare
+            bcrypt.compare(password, foundUser.password, function(err, result){
+                if(result === true){
+                    res.render("secrets");
+                }
+                else{
+                    res.send("Incorrect password");
+                }
+            });
+           
         }
         else{
             res.send("User not found");
