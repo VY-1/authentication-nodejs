@@ -38,7 +38,8 @@ mongoose.connect("mongodb://127.0.0.1:27017/userDB", {useNewUrlParser: true});
 const userSchema = new mongoose.Schema({
     email: String,
     password: String,
-    googleId: String
+    googleId: String,
+    secret: String
 });
 
 //THIRD
@@ -113,11 +114,27 @@ app.get("/register", function(req, res){
 });
 
 app.get("/secrets", function(req, res){
+    
     console.log("From /secrets: " + req.isAuthenticated());
-    const userName = req.user.displayName;
-    console.log(userName);
+    
     if (req.isAuthenticated()){
-        res.render("secrets", {userName: userName});
+        User.find({"secret": {$ne:null}})
+        .then((usersSecrets)=>{
+            res.render("secrets", {usersSecrets: usersSecrets});
+        })
+        .catch((err)=>{
+            res.send(err);
+        });
+
+        
+    }else{
+        res.redirect("/login");
+    }
+});
+
+app.get("/submit", function(req, res){
+    if(req.isAuthenticated()){
+        res.render("submit");
     }else{
         res.redirect("/login");
     }
@@ -156,7 +173,7 @@ app.post("/register", function(req, res){
 
 });
 
-app.post("/login", async function(req, res){
+app.post("/login", function(req, res){
     const username = req.body.username;
     const password = req.body.password;
 
@@ -178,6 +195,20 @@ app.post("/login", async function(req, res){
 
     }); 
 
+});
+
+app.post("/submit", function(req, res){
+    const submittedSecret = req.body.secret;
+    console.log(req.user._id);
+    User.findById(req.user._id)
+    .then((foundUser)=>{
+        foundUser.secret = submittedSecret;
+        foundUser.save();
+        res.redirect("/secrets");
+    })
+    .catch((err)=>{
+        res.send(err);
+    })
 });
 
 
